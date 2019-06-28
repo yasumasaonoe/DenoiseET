@@ -1,4 +1,5 @@
 # Learning to Denoise Distantly-Labeled Data for Entity Typing
+<<<<<<< HEAD
 This is a PyTorch implementation of the fine-grained entity typing system presented in the NAACL 2019 paper [Learning to Denoise Distantly-Labeled Data for Entity Typing](https://www.aclweb.org/anthology/N19-1250).
 
 ## Dependencies
