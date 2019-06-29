@@ -18,11 +18,11 @@ python3 main.py et_model -enhanced_mention -data_setup joint -add_crowd -multita
 ```
 Relabeling Model:
 ```
-python3 main.py filter -enhanced_mention -data_setup joint -add_crowd -multitask -mention_lstm -add_headword_emb -model_type filter -remove_el -remove_open -mode train_labeler
+python3 main.py labeler -enhanced_mention -data_setup joint -add_crowd -multitask -mention_lstm -add_headword_emb -model_type labeler -remove_el -remove_open -mode train_labeler
 ```
 Filtering Model:
 ```
-python3 main.py labeler -enhanced_mention -data_setup joint -add_crowd -multitask -mention_lstm -add_headword_emb -model_type labeler -remove_el -remove_open -mode train_labeler
+python3 main.py filter -enhanced_mention -data_setup joint -add_crowd -multitask -mention_lstm -add_headword_emb -model_type filter -remove_el -remove_open -mode train_labeler
 ```
 BERT:
 ```
