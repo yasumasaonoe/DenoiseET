@@ -5,7 +5,7 @@ This is a PyTorch implementation of the fine-grained entity typing system presen
 The code is developed with `python 3.6` and `pytorch 0.4.0`. We use [spaCy](https://spacy.io/) to preprocess data.
 
 ## Data
-The ultra-fine entity typing dataset is available [here](https://homes.cs.washington.edu/~eunsol/open_entity.html). Download the `data` folder from [here](). Modify `./resources/constant.py` accordingly to make shure that all paths are pointing to the right directories. 
+The ultra-fine entity typing dataset is available [here](https://homes.cs.washington.edu/~eunsol/open_entity.html). Download the `data` folder from [here](https://drive.google.com/file/d/1FN06VY77Llo_mNSuCO-Qpcqk5GtKArds/view?usp=sharing). Modify `./resources/constant.py` accordingly to make shure that all paths are pointing to the right directories. 
 
 #### Preprocessing
 Our models require mention headwords. See `./data_tools/add_tree.py` how to add headwords to the original data. `./data/crowd` contains the preprocessed manually-annotated data.
