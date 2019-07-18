@@ -33,6 +33,7 @@ Coming soon...
 
 ## Evaluating Models
 Once you trained an entity typing model, you can evaluate it on the dev/test set with the command below. `[MODEL NAME]` is the model file (without suffix).
+
 Entity Typing Model:
 ```
 python3 main.py et_model_eval -enhanced_mention -data_setup joint -add_crowd -multitask -mention_lstm -add_headword_emb -model_type et_model -mode test -reload_model_name [MODEL NAME] -eval_data crowd/dev_tree.json -load
@@ -48,11 +49,14 @@ Filtering Model:
 ```
 python3 -u main.py filter_eval -enhanced_mention -data_setup joint -add_crowd -multitask -mention_lstm -add_headword_emb -model_type filter -mode test_labeler -reload_model_name [MODEL NAME] -eval_data [DATA FILE NAME] -load
 ```
+After running this command, `filter_eval.json` will be saved in the current directory. The model predictions are stored with the `pred` key.
+
 
 Relabeling Model:
 ```
 python3 -u main.py filter_eval -enhanced_mention -data_setup joint -add_crowd -multitask -mention_lstm -add_headword_emb -model_type filter -mode test_labeler -reload_model_name [MODEL NAME] -eval_data [DATA FILE NAME] -load
 ```
+After running this command, `labeler_eval.json` will be saved in the current directory. The model predictions are stored with the `cls_pred` key (`1` if the example is classified as a bad example, `0` otherwise).
 
 ## Questions
 Contact us at `yasumasa@cs.utexas.edu` if you have any questions!
