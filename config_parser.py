@@ -15,7 +15,7 @@ parser.add_argument("-dev_data", help="Dev data", default="ontonotes/g_dev_tree.
 parser.add_argument("-eval_data", help="Test data", default="ontonotes/g_test_tree.json")
 parser.add_argument("-num_epoch", help="The number of epoch", default=5000, type=int)
 parser.add_argument("-batch_size", help="The batch size", default=100, type=int)
-parser.add_argument("-eval_batch_size", help="The batch size", default=100, type=int)
+parser.add_argument("-eval_batch_size", help="The batch size", default=50, type=int)
 parser.add_argument("-goal", help="Limiting vocab to smaller vocabs (either ontonote or figer)", default="open",
                     choices=["open", "onto", "wiki", 'kb'])
 parser.add_argument("-seed", help="Pytorch random Seed", default=1888)
