@@ -189,5 +189,5 @@ class Filter(LabelerBase):
     cls_logits = self.cls_decoder(cls_input)
     cls_loss = self.define_cls_loss(cls_logits.squeeze(1), feed_dict['y_cls'])
     dummy_logits = -1. * torch.ones((cls_logits.size()[0], self.answer_num))
-    dummy_logits[:, :3] = 1.
+    #dummy_logits[:, :3] = 1.
     return cls_loss, dummy_logits, cls_logits

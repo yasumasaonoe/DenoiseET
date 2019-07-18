@@ -147,7 +147,7 @@ def drop_types_randomly(type_idx, type_str, all_types):
 def get_example(generator, glove_dict, batch_size, answer_num,
                 eval_data=False, simple_mention=True,
                 elmo=None, bert=None, bert_tokenizer=None, finetune_bert=False,
-                data_config=None, is_labeler=False, is_relabeling=False, type_elmo=None, all_types=None,
+                data_config=None, is_labeler=False, type_elmo=None, all_types=None,
                 use_type_definition=False):
 
   use_elmo_batch = True if elmo is not None else False ### use elmo batch
@@ -183,10 +183,7 @@ def get_example(generator, glove_dict, batch_size, answer_num,
     targets = np.zeros([bsz, answer_num], np.float32)
 
     if is_labeler:
-      if eval_data and is_relabeling:
-        y_tups = [list(zip(elem[4], elem[7])) for elem in cur_stream if elem] # noised y
-      else:
-        y_tups = [list(zip(elem[9], elem[8])) for elem in cur_stream if elem] # original y
+      y_tups = [list(zip(elem[9], elem[8])) for elem in cur_stream if elem] # noisy y (9, 8) 
       y_noisy = [[t[1] for t in tup] for tup in y_tups]
       y_noisy_idx = [[t[0] for t in tup] for tup in y_tups]
       y_noisy_lengths = [len(yn) for yn in y_noisy]
@@ -293,7 +290,7 @@ def get_example(generator, glove_dict, batch_size, answer_num,
           token_embed[i, :n_layers, :, :] = elmo_emb[:, :max_seq_length, :] 
         # mention span
         start_ind = len(left_seq)
-        end_ind = len(left_seq) + len(mention_seq) - 1     
+        end_ind = len(left_seq) + len(mention_seq) - 1
         elmo_mention = elmo_emb[:, start_ind:end_ind+1, :]
         mention_len = end_ind - start_ind + 1
         assert mention_len == elmo_mention.shape[1] == len(mention_seq),(mention_len, elmo_mention.shape[1], len(mention_seq), mention_seq, elmo_mention.shape, token_seq, elmo_emb.shape) # (mention_len, elmo_mention.shape[0], len(mention_seq))
@@ -361,6 +358,7 @@ def get_example(generator, glove_dict, batch_size, answer_num,
         y_cls[i] = float(cur_stream[i][10])
         if use_type_definition:
           for t_idx in range(len(cur_stream[i][13])):
+            #print(len(cur_stream), i, t_idx, len(cur_stream[i][13]), cur_stream[i][13])
             type_definition_idx[i, t_idx, :len(cur_stream[i][13][t_idx])] = cur_stream[i][13][t_idx]
             type_definition_length[i, t_idx] = len(cur_stream[i][13][t_idx])
       if elmo is None and not finetune_bert:
@@ -425,7 +423,7 @@ class TypeDataset(object):
       self.use_type_definition = False
     self.args = args
     self.is_labeler = True if args.mode in ['train_labeler', 'test_labeler'] else False
-    self.is_relabeling = True if args.mode in ['test_labeler'] else False
+    self.is_training_labeler = True if args.mode in ['train_labeler'] else False
     self.type_set = self._load_type_set() if self.is_labeler else None
     self.all_types = self._load_all_types() if self.is_labeler else None
     self.type_definition = constant.DEFINITION
@@ -454,8 +452,8 @@ class TypeDataset(object):
       types = [line.strip() for line in f.readlines()]
     return types
 
-  def _get_fake_labels(self, labels):
-    if random() > 0.3:
+  def _get_fake_labels(self, labels, th=.7):
+    if random() > th:
       fake_labels = None
       fake_idx = list(range(len(self.type_set)))
       shuffle(fake_idx)
@@ -516,12 +514,12 @@ class TypeDataset(object):
     syn = [t for tt in syn for t in tt]
     return list(set([t for t in list(set(hyp + syn)) if t in self.all_types and t not in self.exclude_types] + labels))
 
-  def drop_types_randomly(self, type_idx):
+  def drop_types_randomly(self, type_idx, th=.7):
     if len(type_idx) == 1:
       return type_idx
     selected_types = []
     for s in type_idx:
-      if random() > 0.3:
+      if random() > th:
         selected_types.append(s)
     if len(selected_types) > 0:
       return selected_types
@@ -583,18 +581,17 @@ class TypeDataset(object):
       y_ids_noisy_wordnet_expanded = []
       y_ids_noisy_def = []
       y_str_noisy_def = []
-      noisy = [self._get_fake_labels(y) for y in y_str_list]
-      if self.is_relabeling:
-        y_str_list_noisy = [y[0] for y in noisy]
+      if self.is_training_labeler:
+        noisy = [self._get_fake_labels(y) for y in y_str_list] # randomly swap type set during training
       else:
-        #y_str_list_noisy = [line_elem['y_keep30_str'] for line_elem in line_elems]
-        y_str_list_noisy = [y[0] for y in noisy]
+        noisy = [self._get_fake_labels(y, th=1.) for y in y_str_list] # we don't add noise during testing
+      y_str_list_noisy = [y[0] for y in noisy] # noisy labels for filter
       y_cls = [y[1] for y in noisy]
       for iid_n, y_strs_n in enumerate(y_str_list_noisy):
-        # Adding noise during training
-        if not self.is_relabeling:
-          y_strs_n = self.drop_types_randomly(y_strs_n) # random 
-          #y_strs_n = self.drop_coarse_types(y_strs_n, self.all_types[:constant.ANSWER_NUM_DICT['kb']]) # drop general types 
+        if self.is_training_labeler:
+          y_strs_n = self.drop_types_randomly(y_strs_n) # randomly drop types during training
+        else:
+          y_strs_n = self.drop_types_randomly(y_strs_n, th=0.) # we don't add noise during testing
         y_str_list_noisy_.append(y_strs_n)
         y_ids_noisy.append([self.word2id[x] for x in y_strs_n if x in self.word2id])
         y_strs_wn = self.expand_types_wordnet(y_strs_n)
@@ -627,7 +624,6 @@ class TypeDataset(object):
                        finetune_bert=self.finetune_bert,
                        bert_tokenizer=self.bert_tokenizer,
                        is_labeler=self.is_labeler,
-                       is_relabeling=self.is_relabeling,
                        all_types=self.all_types,
                        use_type_definition=self.use_type_definition
                       )

@@ -115,34 +115,9 @@ def get_joint_datasets(args):
   return train_gen_list, valid_gen_list, crowd_dev_gen, elmo, bert, vocab
 
 
-def get_cv_datasets(args): # cross validation data for reranker
-  if args.glove_elmo:
-    vocab = data_utils.get_vocab()
-    elmo = data_utils.init_elmo()
-    bert = None
-  elif args.elmo:
-    vocab = (constant.CHAR_DICT, None) # dummy empty dict
-    elmo = data_utils.init_elmo()
-    bert = None
-  else:
-    vocab = data_utils.get_vocab()
-    elmo = None
-    bert = None
-  train_gen_list = []
-  n_fold = args.k_fold_cv
-  if args.mode == 'train_baseline':
-    for k in range(n_fold):
-      train_gen_list.append(("open", get_data_gen('crowd/cv_3fold/train_tree_{0}.json'.format(repr(k)), 'train', args, vocab, "open", elmo=elmo, bert=bert)))
-  return train_gen_list, elmo
-
-
 def get_datasets(data_lists, args):
   data_gen_list = []
-  if args.glove_elmo:
-    vocab = data_utils.get_vocab()
-    elmo = data_utils.init_elmo()
-    bert = None 
-  elif args.elmo:
+  if args.elmo:
     vocab = (constant.CHAR_DICT, None) # dummy empty dict
     elmo = data_utils.init_elmo()
     bert = None
@@ -150,11 +125,6 @@ def get_datasets(data_lists, args):
     vocab = (constant.CHAR_DICT, None) # dummy empty dict 
     elmo = None
     bert = None
-  elif args.bert_freeze:
-    vocab = (constant.CHAR_DICT, None) # dummy empty dict 
-    elmo = None
-    bert = data_utils.init_bert(args, constant.ANSWER_NUM_DICT[args.goal])
-    bert.eval() # 
   else:
     vocab = data_utils.get_vocab()
     elmo = None
@@ -674,25 +644,6 @@ def _test(args):
     logging.info('processing: ' + name)
     logging.info(eval_str)
 
-    # prepare 2nd stage train data
-    if args.save_reranker_data and args.topk > 0:
-      with open(constant.FILE_ROOT + test_fname, 'r') as f:
-        data = [json.loads(line.strip()) for line in f.readlines()]
-      new_data = []
-      for d in data:
-        pred = output_dict[d['annot_id']]['pred']
-        #pred_idx = list(range(len(pred)))
-        #shuffle(pred_idx) # shuffle types. In general, gold types are located together
-        d['topk_pred'] = pred # [pred[idx] for idx in pred_idx]
-        #d['topk_pred_idx'] = [pred_idx.index(idx) for idx in range(len(pred_idx))]
-        new_data.append(d)
-      save_fname = constant.FILE_ROOT + test_fname.rstrip('.json') + '_' + args.model_id + '.json'
-      with open(save_fname, 'w') as f:
-        for nd in new_data:
-            json.dump(nd, f)
-            f.write('\n')
-      print("Reranker Data: saved at " + save_fname)
-
 
 def _test_labeler(args):
   assert args.load
@@ -703,7 +654,7 @@ def _test_labeler(args):
     model = denoising_models.Labeler(args, constant.ANSWER_NUM_DICT[args.goal])
   elif args.model_type == 'filter':
     print('==> Filter')
-    model = labeler.Filter(args, constant.ANSWER_NUM_DICT[args.goal])
+    model = denoising_models.Filter(args, constant.ANSWER_NUM_DICT[args.goal])
   else:
     print('Invalid model type: -model_type ' + args.model_type)
     raise NotImplementedError
@@ -725,8 +676,8 @@ def _test_labeler(args):
         print('==> batch: ', batch)
       eval_batch, annot_ids = to_torch(batch)
       #print('eval_batch')
-      for k, v in eval_batch.items():
-        print(k, v.size())
+      #for k, v in eval_batch.items():
+      #  print(k, v.size())
       loss, output_logits, cls_logits = model(eval_batch, args.goal)
       #print('loss', loss)
       #print('output_logits', output_logits)
@@ -752,12 +703,15 @@ def _test_labeler(args):
                 open('./{0:s}_gold_pred.p'.format(args.reload_model_name), "wb"))
     with open('./{0:s}.json'.format(args.model_id), 'w') as f_out:
       output_dict = {}
-      counter = 0
-      for a_id, (gold, pred, cls, ycls, ynoise) in zip(total_annot_ids, total_gold_pred_pcls_ycls_ynoise):
-        output_dict[a_id] = {"gold": gold, "pred": pred, "cls_pred": cls, "cls_gold": ycls, "y_noisy": ynoise}
-      #for a_id, (gold, pred) in zip(total_annot_ids, total_gold_pred_pcls_ycls_ynoise):
-      #  output_dict[a_id] = {"gold": gold, "pred": pred}
-      #  counter += 1
+      if args.model_type == 'filter':
+        for a_id, (gold, pred, cls, ycls, ynoise) in zip(total_annot_ids, total_gold_pred_pcls_ycls_ynoise):
+          output_dict[a_id] = {"gold": gold, "pred": pred, "cls_pred": cls, "cls_gold": ycls, "y_noisy": ynoise}
+      elif args.model_type == 'labeler':
+        for a_id, (gold, pred) in zip(total_annot_ids, total_gold_pred_pcls_ycls_ynoise):
+          output_dict[a_id] = {"gold": gold, "pred": pred}
+      else:
+        print('Invalid model type: -model_type ' + args.model_type)
+        raise NotImplementedError
       json.dump(output_dict, f_out)
     eval_str = get_eval_string(list(zip(*list(zip(*gold_pred_pcls_ycls_ynoise))[:2])))
     print(eval_str)
